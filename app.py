@@ -1,4 +1,4 @@
-# app.py — AI Audio Designer (Updated: Remove st_canvas, add wall speaker option)
+# app.py — AI Audio Designer (Updated: Recommend Power Amp)
 
 import streamlit as st
 import pandas as pd
@@ -98,12 +98,34 @@ if submitted:
 
         filtered = df[df["Type"].str.contains(type_filter, case=False, na=False)]
         filtered = filtered[pd.to_numeric(filtered["Max SPL (dB)"], errors='coerce') >= min_spl]
-        filtered = filtered.head(len(speakers))
+        speaker_selection = filtered.head(len(speakers))
 
-        st.dataframe(filtered[["Model", "Brand", "Type", "Power (W)", "Coverage Angle", "Price (THB)", "Stock"]])
-        total_cost = filtered["Price (THB)"].sum()
-        st.metric("💰 ราคารวมโดยประมาณ", f"{total_cost:,.0f} บาท")
-        if total_cost > budget:
+        st.dataframe(speaker_selection[["Model", "Brand", "Type", "Power (W)", "Coverage Angle", "Price (THB)", "Stock"]])
+        speaker_total = speaker_selection["Price (THB)"].sum()
+        st.metric("💰 ราคารวมลำโพง", f"{speaker_total:,.0f} บาท")
+
+        # 🆕 แนะนำ Power Amp
+        st.subheader("⚡ แนะนำ Power Amplifier")
+        try:
+            total_power = speaker_selection["Power (W)"].astype(float).sum()
+            amp_df = df[df["Type"].str.contains("Amp", case=False, na=False)]
+            amp_df = amp_df[pd.to_numeric(amp_df["Power (W)"], errors='coerce') >= total_power * 0.9]  # เผื่อ Headroom 10%
+            amp_selection = amp_df.sort_values(by="Power (W)").head(1)
+
+            if not amp_selection.empty:
+                st.dataframe(amp_selection[["Model", "Brand", "Type", "Power (W)", "Price (THB)", "Stock"]])
+                amp_total = amp_selection["Price (THB)"].sum()
+                st.metric("💡 ราคารวมแอมป์", f"{amp_total:,.0f} บาท")
+            else:
+                st.warning("ไม่พบ Power Amp ที่รองรับกำลังลำโพงทั้งหมด")
+                amp_total = 0
+        except:
+            st.warning("ข้อมูลกำลังวัตต์ของลำโพงหรือแอมป์ไม่สมบูรณ์")
+            amp_total = 0
+
+        grand_total = speaker_total + amp_total
+        st.metric("💰 รวมราคาทั้งหมด", f"{grand_total:,.0f} บาท")
+        if grand_total > budget:
             st.warning("⚠️ ระบบเสียงที่แนะนำเกินงบประมาณที่ตั้งไว้")
         else:
             st.success("✅ ระบบเสียงที่แนะนำอยู่ภายใต้งบประมาณ")
