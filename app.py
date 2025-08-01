@@ -100,7 +100,30 @@ if submitted:
         else:
             type_filter = spk_type  # fallback
 
-        filtered = df[df["Type"].str.contains(type_filter, case=False)].head(len(speakers)).head(len(speakers))
+        # ดึงประเภทอุปกรณ์ตามลักษณะการใช้งาน
+        if use_case == "เปิดเพลงพื้นหลัง (BGM)":
+            type_filter = "Ceiling"
+            min_spl = 85
+        elif use_case == "เสียงพูด":
+            type_filter = "Full-range"
+            min_spl = 90
+        elif use_case == "ดนตรีสด":
+            type_filter = "Full-range|Line Array"
+            min_spl = 100
+        elif use_case == "ดีเจ / ปาร์ตี้":
+            type_filter = "Line Array|Subwoofer"
+            min_spl = 105
+        elif use_case == "การประกาศหลายโซน":
+            type_filter = "Ceiling|Paging"
+            min_spl = 85
+        else:
+            type_filter = spk_type
+            min_spl = 90
+
+        # กรองอุปกรณ์ที่ตรงกับประเภทและความดังที่เหมาะสม
+        filtered = df[df["Type"].str.contains(type_filter, case=False)]
+        filtered = filtered[pd.to_numeric(filtered["Max SPL (dB)"], errors='coerce') >= min_spl]
+        filtered = filtered.head(len(speakers)).head(len(speakers)).head(len(speakers))
         st.dataframe(filtered[["Model", "Brand", "Type", "Power (W)", "Coverage Angle", "Price (THB)", "Stock"]])
         total_cost = filtered["Price (THB)"].sum()
         st.metric("💰 ราคารวมโดยประมาณ", f"{total_cost:,.0f} บาท")
