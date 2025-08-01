@@ -1,4 +1,4 @@
-# app.py — ผู้ช่วยออกแบบระบบเสียงด้วย AI (รองรับแปลน, สเกล, เลือกประเภทลำโพง, โลโก้)
+# app.py — ผู้ช่วยออกแบบระบบเสียงด้วย AI พร้อมลากเส้นวัดสเกลจากแบบแปลน
 
 import streamlit as st
 import pandas as pd
@@ -7,6 +7,8 @@ import matplotlib.patches as patches
 from PIL import Image
 from io import BytesIO
 import numpy as np
+from streamlit_drawable_canvas import st_canvas
+import math
 
 st.set_page_config(page_title="AI Audio Designer", layout="centered")
 st.image("https://proplugin.com/pub/media/logo/websites/1/logo.svg", width=200)
@@ -33,7 +35,7 @@ def suggest_speaker_positions(room_w, room_l, spacing):
         x += spacing
     return positions
 
-# วาดแผนผัง
+# วาดแผนผังแบบกราฟิก
 def draw_layout(width, length, speakers, coverage_radius):
     fig, ax = plt.subplots(figsize=(10, 6))
     ax.set_xlim(0, width)
@@ -57,50 +59,57 @@ with st.form("audio_form"):
     room_width = st.number_input("ความกว้างของห้อง (เมตร)", min_value=1.0, value=12.0, step=0.1)
     room_length = st.number_input("ความยาวของห้อง (เมตร)", min_value=1.0, value=20.0, step=0.1)
     spacing = st.slider("ระยะห่างระหว่างลำโพง (เมตร)", 2, 10, 6)
-    coverage_radius = st.slider("รัศมีการครอบคลุมของลำโพง (เมตร)", 2, 10, 5)
     budget = st.number_input("งบประมาณโดยประมาณ (บาท)", min_value=0, value=100000, step=1000)
-    spk_type = st.selectbox("เลือกประเภทของลำโพงที่ต้องการ", ["Full-range", "Ceiling", "Line Array"])
-    
     st.markdown("---")
-    st.subheader("📐 อัปโหลดแบบแปลน (ไม่บังคับ)")
+
+    st.subheader("📐 อัปโหลดแบบแปลนและวัดระยะ")
     uploaded_file = st.file_uploader("อัปโหลดไฟล์ภาพแบบแปลน (PNG/JPG)", type=["png", "jpg", "jpeg"])
-    scale_length = st.number_input("ความยาวจริงของเส้นอ้างอิงในแบบแปลน (เมตร)", min_value=0.0, value=10.0, step=0.1)", 1, 100, 10)
-    scale_pixel = st.number_input("จำนวนพิกเซลของเส้นอ้างอิงในภาพ (จากการวัด)", min_value=1, value=1000, step=1)", 1, 5000, 1000)
+    scale = 1.0
+
+    if uploaded_file:
+        img = Image.open(uploaded_file)
+        st.image(img, caption="แบบแปลนจากผู้ใช้งาน", use_column_width=True)
+
+        st.markdown("### ✏️ วาดเส้นอ้างอิงเพื่อวัดสเกล")
+        canvas_result = st_canvas(
+            fill_color="rgba(255, 0, 0, 0.3)",
+            stroke_width=2,
+            stroke_color="#ff0000",
+            background_image=img,
+            update_streamlit=True,
+            height=500,
+            drawing_mode="line",
+            key="canvas",
+        )
+
+        ref_length = st.number_input("ระยะจริงของเส้นที่ลาก (เมตร)", min_value=0.0, value=10.0, step=0.1)
+
+        if canvas_result.json_data and len(canvas_result.json_data["objects"]) > 0:
+            line = canvas_result.json_data["objects"][-1]
+            x1, y1 = line["x1"], line["y1"]
+            x2, y2 = line["x2"], line["y2"]
+            pixel_distance = math.hypot(x2 - x1, y2 - y1)
+            scale = ref_length / pixel_distance
+            st.success(f"✔️ ระยะพิกเซลที่ลากได้: {pixel_distance:.2f} px → สเกล: 1 px ≈ {scale:.4f} เมตร")
+        else:
+            st.warning("⚠️ กรุณาลากเส้นอ้างอิงบนแบบแปลน")
+
     submitted = st.form_submit_button("สร้างระบบเสียง")
 
 if submitted:
     st.success("กำลังประมวลผลการออกแบบระบบเสียง...")
-    scale_factor = scale_length / scale_pixel  # เมตรต่อพิกเซล
     speakers = suggest_speaker_positions(room_width, room_length, spacing)
-    fig = draw_layout(room_width, room_length, speakers, coverage_radius)
-
-    if uploaded_file:
-        st.subheader("🖼️ แบบแปลนที่อัปโหลด")
-        img = Image.open(uploaded_file)
-        st.image(img, caption="แบบแปลนจากผู้ใช้งาน", use_column_width=True)
-        st.caption(f"สเกล: 1 พิกเซล = {scale_factor:.4f} เมตร")
 
     st.subheader("📍 ผังตำแหน่งลำโพง")
+    coverage_radius = 2.5
+    fig = draw_layout(room_width, room_length, speakers, coverage_radius)
     st.pyplot(fig)
     st.info(f"แนะนำให้ใช้ลำโพงจำนวน: {len(speakers)} ตัว")
 
     df = load_product_database()
     if df is not None:
         st.subheader("🔊 อุปกรณ์ที่แนะนำ")
-        if use_case == "เปิดเพลงพื้นหลัง (BGM)":
-            type_filter = "Ceiling"
-        elif use_case == "เสียงพูด":
-            type_filter = "Full-range"
-        elif use_case == "ดนตรีสด":
-            type_filter = "Full-range|Line Array"
-        elif use_case == "ดีเจ / ปาร์ตี้":
-            type_filter = "Line Array|Subwoofer"
-        elif use_case == "การประกาศหลายโซน":
-            type_filter = "Ceiling|Paging"
-        else:
-            type_filter = spk_type  # fallback
 
-        # ดึงประเภทอุปกรณ์ตามลักษณะการใช้งาน
         if use_case == "เปิดเพลงพื้นหลัง (BGM)":
             type_filter = "Ceiling"
             min_spl = 85
@@ -117,13 +126,13 @@ if submitted:
             type_filter = "Ceiling|Paging"
             min_spl = 85
         else:
-            type_filter = spk_type
+            type_filter = "Full-range"
             min_spl = 90
 
-        # กรองอุปกรณ์ที่ตรงกับประเภทและความดังที่เหมาะสม
         filtered = df[df["Type"].str.contains(type_filter, case=False)]
         filtered = filtered[pd.to_numeric(filtered["Max SPL (dB)"], errors='coerce') >= min_spl]
-        filtered = filtered.head(len(speakers)).head(len(speakers)).head(len(speakers))
+        filtered = filtered.head(len(speakers))
+
         st.dataframe(filtered[["Model", "Brand", "Type", "Power (W)", "Coverage Angle", "Price (THB)", "Stock"]])
         total_cost = filtered["Price (THB)"].sum()
         st.metric("💰 ราคารวมโดยประมาณ", f"{total_cost:,.0f} บาท")
