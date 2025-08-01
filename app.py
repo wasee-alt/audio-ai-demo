@@ -68,7 +68,8 @@ with st.form("audio_form"):
 
     if uploaded_file:
         img = Image.open(uploaded_file)
-        st.image(img, caption="แบบแปลนจากผู้ใช้งาน", use_column_width=True)
+        img = img.convert("RGB")  # 🔧 ป้องกัน error ด้วยการแปลงให้รองรับ
+        st.image(img, caption="แบบแปลนจากผู้ใช้งาน", use_container_width=True)
 
         st.markdown("### ✏️ วาดเส้นอ้างอิงเพื่อวัดสเกล")
         canvas_result = st_canvas(
