@@ -66,9 +66,8 @@ with st.form("audio_form"):
     uploaded_file = st.file_uploader("อัปโหลดไฟล์ภาพแบบแปลน (PNG/JPG)", type=["png", "jpg", "jpeg"])
     scale = 1.0
 
-    if uploaded_file:
-        img = Image.open(uploaded_file)
-        img = img.convert("RGB")  # 🔧 ป้องกัน error ด้วยการแปลงให้รองรับ
+    if uploaded_file is not None:
+        img = Image.open(uploaded_file).convert("RGB")
         st.image(img, caption="แบบแปลนจากผู้ใช้งาน", use_container_width=True)
 
         st.markdown("### ✏️ วาดเส้นอ้างอิงเพื่อวัดสเกล")
