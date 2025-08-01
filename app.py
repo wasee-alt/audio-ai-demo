@@ -53,6 +53,7 @@ def draw_layout(width, length, speakers, coverage_radius):
 with st.form("audio_form"):
     st.subheader("📝 ข้อมูลพื้นที่ติดตั้ง")
     room_type = st.selectbox("ประเภทสถานที่", ["ร้านอาหาร", "ห้องประชุม", "ร้านค้า", "สถานที่แสดงสด", "โบสถ์"])
+    use_case = st.selectbox("ลักษณะการใช้งานของระบบเสียง", ["เปิดเพลงพื้นหลัง (BGM)", "เสียงพูด", "ดนตรีสด", "ดีเจ / ปาร์ตี้", "การประกาศหลายโซน"])
     room_width = st.number_input("ความกว้างของห้อง (เมตร)", 1, 100, 12)
     room_length = st.number_input("ความยาวของห้อง (เมตร)", 1, 100, 20)
     spacing = st.slider("ระยะห่างระหว่างลำโพง (เมตร)", 2, 10, 6)
@@ -86,7 +87,20 @@ if submitted:
     df = load_product_database()
     if df is not None:
         st.subheader("🔊 อุปกรณ์ที่แนะนำ")
-        filtered = df[df["Type"].str.contains(spk_type, case=False)].head(len(speakers))
+        if use_case == "เปิดเพลงพื้นหลัง (BGM)":
+            type_filter = "Ceiling"
+        elif use_case == "เสียงพูด":
+            type_filter = "Full-range"
+        elif use_case == "ดนตรีสด":
+            type_filter = "Full-range|Line Array"
+        elif use_case == "ดีเจ / ปาร์ตี้":
+            type_filter = "Line Array|Subwoofer"
+        elif use_case == "การประกาศหลายโซน":
+            type_filter = "Ceiling|Paging"
+        else:
+            type_filter = spk_type  # fallback
+
+        filtered = df[df["Type"].str.contains(type_filter, case=False)].head(len(speakers)).head(len(speakers))
         st.dataframe(filtered[["Model", "Brand", "Type", "Power (W)", "Coverage Angle", "Price (THB)", "Stock"]])
         total_cost = filtered["Price (THB)"].sum()
         st.metric("💰 ราคารวมโดยประมาณ", f"{total_cost:,.0f} บาท")
