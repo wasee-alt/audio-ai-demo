@@ -1,0 +1,9 @@
+Model,Brand,Type,Power (W),Coverage Angle,Max SPL (dB),Price (THB),Stock
+TNA-2051,HH,Line Array,500,100x15,130,25000,10
+TNA-2120SA,HH,Subwoofer,1200,,135,35500,5
+TRS-210,HH,Full-range,300,90x40,123,15500,12
+VRE-2204,HH,Amplifier,800,,N/A,18900,8
+SP26,HH,DSP,,,"",12000,15
+APT-8,HH,Ceiling,60,120x120,110,3400,20
+Talk8,OA,Paging Mic,,,,7800,10
+ZonePad8,OA,Wall Control,,,,5600,10
